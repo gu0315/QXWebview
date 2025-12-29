@@ -17,11 +17,9 @@ Pod::Spec.new do |s|
 #   * Write the description between the DESC delimiters below.
 #   * Finally, don't worry about the indent, CocoaPods strips it!
 
-  s.description      = <<-DESC
-TODO: Add long description of the pod here.
-                       DESC
+  s.description      =  'Add long description of the pod here'
 
-  s.homepage         = 'https://github.com/gqx/QXWebView'
+  s.homepage         = 'https://github.com/gu0315/QXWebview'
   # s.screenshots     = 'www.example.com/screenshots_1', 'www.example.com/screenshots_2'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'gqx' => '39515706+gu0315@users.noreply.github.com' }
@@ -45,7 +43,7 @@ TODO: Add long description of the pod here.
   
   s.static_framework = true
   # 添加高德定位 SDK 依赖（复用主工程的 AMapLocation-NO-IDFA）
-  s.dependency 'AMapLocation-NO-IDFA'
+  #s.dependency 'AMapLocation-NO-IDFA'
 
   s.xcconfig = {
       'OTHER_LDFLAGS' => '-ObjC -all_load',
