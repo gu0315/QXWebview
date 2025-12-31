@@ -79,6 +79,7 @@ public class QXBasePlugin: JDBridgeBasePlugin {
         
         let nav = UINavigationController(rootViewController: scannerVC)
         nav.modalPresentationStyle = .fullScreen
+        nav.navigationBar.isHidden = true
         topVC.present(nav, animated: true)
     }
     
