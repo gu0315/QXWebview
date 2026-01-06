@@ -9,6 +9,7 @@ import UIKit
 import WebKit
 import Foundation
 import CoreTelephony
+import QuickLook
 
 // 屏幕常量（替代原 Const，若项目已有可复用）
 private struct ScreenConst {
@@ -24,6 +25,8 @@ public class QXWebViewController: UIViewController {
     var webView: JDWebViewContainer!
     /// 加载的URL
     var urlString: String?
+    
+    private var previewFileURL: URL!
 
     // MARK: - 布局控制属性
     var isNavigationBarHidden: Bool = true {
@@ -360,6 +363,35 @@ public class QXWebViewController: UIViewController {
         }
     }
     
+    
+    public func openFile(fileURL: URL) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+                       
+            guard fileURL.isFileURL else {
+               print("❌ 文件URL错误：非本地沙盒文件")
+               return
+            }
+            let filePath = fileURL.path
+            guard !filePath.isEmpty else {
+               print("❌ 文件路径为空")
+               return
+            }
+            guard FileManager.default.fileExists(atPath: filePath) else {
+               print("❌ 文件不存在：\(filePath)")
+               return
+            }
+        
+            self.previewFileURL = fileURL
+            let qlPreviewVC = QLPreviewController()
+            qlPreviewVC.dataSource = self
+            qlPreviewVC.delegate = self
+            qlPreviewVC.hidesBottomBarWhenPushed = true
+            qlPreviewVC.navigationItem.title = "文件预览"
+            self.present(qlPreviewVC, animated: true, completion: nil)
+        }
+    }
+    
     deinit {
         // 移除通知监听
         NotificationCenter.default.removeObserver(self)
@@ -413,5 +445,15 @@ extension QXWebViewController: WebViewDelegate {
             return
         }
         decisionHandler(.allow)
+    }
+}
+
+extension QXWebViewController: QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+    public func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        return 1
+    }
+    
+    public func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        return self.previewFileURL as QLPreviewItem
     }
 }

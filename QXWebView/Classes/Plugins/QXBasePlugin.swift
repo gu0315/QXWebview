@@ -29,6 +29,9 @@ public class QXBasePlugin: JDBridgeBasePlugin {
         case "location":
             handleLocation(callback: callback)
             return true
+        case "downloadAndOpenFile":
+            handleDownloadAndOpenFile(params: params, callback: callback)
+            return true
         default:
             callback.onFail(NSError(domain: "DeviceInfoPlugin", code: 1001, userInfo: [NSLocalizedDescriptionKey: "未知操作"]))
             return false
@@ -43,7 +46,6 @@ public class QXBasePlugin: JDBridgeBasePlugin {
         switch status {
         case .authorized:
             startQRScanning(callback: callback)
-            
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 DispatchQueue.main.async {
@@ -57,7 +59,6 @@ public class QXBasePlugin: JDBridgeBasePlugin {
             
         case .denied, .restricted:
             callback.onFail( callback.onFail(["message": "没有相机权限","success": false]))
-            
         @unknown default:
             callback.onFail( callback.onFail(["message": "未知错误","success": false]))
         }
@@ -123,7 +124,7 @@ public class QXBasePlugin: JDBridgeBasePlugin {
             callback.onFail(["code": -2, "msg": "未找到WebView容器"])
             return
         }
-        if jdWebViewContainer.canGoBack() {
+        if (jdWebViewContainer.canGoBack()) {
             jdWebViewContainer.goBack()
             callback.onSuccess(["code": 0, "msg": "WebView回退成功"])
         } else {
@@ -145,6 +146,69 @@ public class QXBasePlugin: JDBridgeBasePlugin {
                 ])
             }
         }
+    }
+    
+    private func handleDownloadAndOpenFile(params: [AnyHashable : Any]!, callback: JDBridgeCallBack!) {
+        let urlString: String = params["url"] as? String ?? ""
+        let isOpen: Bool = params["isOpen"] as? Bool ?? true
+        guard let url = URL(string: urlString) else { return }
+        let task = URLSession.shared.downloadTask(with: url) { tempLocalURL, response, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    callback.onSuccess([
+                        "code": 500,
+                        "msg": "文件下载失败：\(error.localizedDescription)"
+                    ])
+                }
+                return
+            }
+        
+            guard let tempLocalURL = tempLocalURL, let response = response else {
+                DispatchQueue.main.async {
+                    callback.onSuccess([
+                        "code": 400,
+                        "msg": "文件下载失败，无文件数据"
+                    ])
+                }
+                return
+            }
+            
+            let originalFileName = (response as? HTTPURLResponse)?.suggestedFilename ?? urlString
+            let fallbackFileName = url.lastPathComponent
+            let fileName = originalFileName.isEmpty ? fallbackFileName : originalFileName
+            
+            let documentsDir = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
+            let permanentFilePath = documentsDir + "/" + fileName
+            let permanentFileURL = URL(fileURLWithPath: permanentFilePath)
+            do {
+                if FileManager.default.fileExists(atPath: permanentFilePath) {
+                    try FileManager.default.removeItem(at: permanentFileURL)
+                }
+                try FileManager.default.copyItem(at: tempLocalURL, to: permanentFileURL)
+                DispatchQueue.main.async {
+                    if isOpen {
+                        let vc = callback.findWebViewController()
+                        vc?.openFile(fileURL: permanentFileURL)
+                    }
+                    
+                    callback.onSuccess([
+                        "code": 200,
+                        "msg": "文件下载成功",
+                        "filePath": permanentFilePath
+                    ])
+                }
+                
+            } catch {
+                // 文件拷贝失败的错误处理
+                DispatchQueue.main.async {
+                    callback.onSuccess([
+                        "code": 500,
+                        "msg": "文件保存失败：\(error.localizedDescription)"
+                    ])
+                }
+            }
+        }
+        task.resume()
     }
 }
 
@@ -178,3 +242,15 @@ extension UIApplication {
     }
 }
 
+extension UIView {
+    var viewController: UIViewController? {
+        var responder: UIResponder? = self
+        while responder != nil {
+            if let vc = responder as? UIViewController {
+                return vc
+            }
+            responder = responder?.next
+        }
+        return nil
+    }
+}

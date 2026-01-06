@@ -29,7 +29,21 @@ extension JDBridgeCallBack {
     }
     
     
-    
+    @objc public func findWebViewController() -> QXWebViewController? {
+        guard let topVC = UIApplication.shared.topViewController else {
+            return nil
+        }
+        if let webVC = topVC as? QXWebViewController {
+            return webVC
+        }
+        if let container = findJDWebViewContainer(in: topVC.view) {
+            return container.viewController as? QXWebViewController
+        }
+
+        return nil
+    }
+
+
     
     /// 直接通过JDBridgeCallBack调用JS插件方法
     /// - Parameters:
